@@ -4,7 +4,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Shared.Diagnostics;
 
 namespace Microsoft.Extensions.Time.Testing;
 
@@ -26,16 +25,30 @@ internal sealed class Timer : ITimer
         _callback = callback;
         _state = state;
     }
+    
+    public static long ThrowIfOutOfRange(long argument, long min, long max)
+     {
+         if (argument < min || argument > max)
+         {
+             throw new ArgumentException($"Argument not in the range [{min}..{max}]");
+         }
+
+         return argument;
+     }
 
     public bool Change(TimeSpan dueTime, TimeSpan period)
     {
         var dueTimeMs = (long)dueTime.TotalMilliseconds;
         var periodMs = (long)period.TotalMilliseconds;
 
-#pragma warning disable S3236 // Caller information arguments should not be provided explicitly
-        _ = Throw.IfOutOfRange(dueTimeMs, -1, MaxSupportedTimeout, nameof(dueTime));
-        _ = Throw.IfOutOfRange(periodMs, -1, MaxSupportedTimeout, nameof(period));
-#pragma warning restore S3236 // Caller information arguments should not be provided explicitly
+
+        ThrowIfOutOfRange(dueTimeMs, -1, MaxSupportedTimeout);
+        ThrowIfOutOfRange(periodMs, -1, MaxSupportedTimeout);
+        
+// #pragma warning disable S3236 // Caller information arguments should not be provided explicitly
+//         _ = Throw.IfOutOfRange(dueTimeMs, -1, MaxSupportedTimeout, nameof(dueTime));
+//         _ = Throw.IfOutOfRange(periodMs, -1, MaxSupportedTimeout, nameof(period));
+// #pragma warning restore S3236 // Caller information arguments should not be provided explicitly
 
         var timeProvider = _timeProvider;
         if (timeProvider is null)

@@ -8,7 +8,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Threading;
 using Microsoft.Shared.DiagnosticIds;
-using Microsoft.Shared.Diagnostics;
 
 namespace Microsoft.Extensions.Time.Testing;
 
@@ -44,7 +43,8 @@ public class FakeTimeProvider : TimeProvider
     /// </remarks>
     public FakeTimeProvider(DateTimeOffset startDateTime)
     {
-        _ = Throw.IfLessThan(startDateTime.Ticks, 0);
+        if(startDateTime == default)
+            throw new ArgumentException("The start date time cannot be the default value.", nameof(startDateTime));
 
         _now = startDateTime;
         Start = _now;
@@ -67,7 +67,8 @@ public class FakeTimeProvider : TimeProvider
         get => _autoAdvanceAmount;
         set
         {
-            _ = Throw.IfLessThan(value.Ticks, 0);
+            if(value.Ticks < 0)
+                throw new ArgumentOutOfRangeException(nameof(value), "The time value must be greater than or equal to zero.");
             _autoAdvanceAmount = value;
         }
     }
@@ -104,7 +105,7 @@ public class FakeTimeProvider : TimeProvider
         {
             if (value < _now)
             {
-                Throw.ArgumentOutOfRangeException(nameof(value), $"Cannot go back in time. Current time is {_now}.");
+                throw new ArgumentException($"Cannot go back in time. Current time is {_now}.");
             }
 
             _now = value;
@@ -126,7 +127,11 @@ public class FakeTimeProvider : TimeProvider
     /// <exception cref="ArgumentOutOfRangeException">The time value is less than <see cref="TimeSpan.Zero"/>.</exception>
     public void Advance(TimeSpan delta)
     {
-        _ = Throw.IfLessThan(delta.Ticks, 0);
+        if (delta.Ticks <= 0)
+        {
+            throw new ArgumentException("The time value must be greater than zero.", nameof(delta));
+        }
+        
 
         lock (Waiters)
         {
@@ -145,7 +150,6 @@ public class FakeTimeProvider : TimeProvider
     /// timers. This is similar to what happens in a real system when the system's
     /// time is changed.
     /// </remarks>
-    [Experimental(diagnosticId: DiagnosticIds.Experiments.TimeProvider, UrlFormat = DiagnosticIds.UrlFormat)]
     public void AdjustTime(DateTimeOffset value)
     {
         lock (Waiters)
@@ -185,7 +189,13 @@ public class FakeTimeProvider : TimeProvider
     /// Sets the local time zone.
     /// </summary>
     /// <param name="localTimeZone">The local time zone.</param>
-    public void SetLocalTimeZone(TimeZoneInfo localTimeZone) => _localTimeZone = Throw.IfNull(localTimeZone);
+    public void SetLocalTimeZone(TimeZoneInfo localTimeZone)
+    {
+        if(localTimeZone == null)
+            throw new ArgumentException("Local time zone cannot be null.", nameof(localTimeZone));
+        
+        _localTimeZone = localTimeZone;
+    }
 
     /// <summary>
     /// Gets the amount by which the value from <see cref="GetTimestamp"/> increments per second.
@@ -204,7 +214,11 @@ public class FakeTimeProvider : TimeProvider
     /// <inheritdoc />
     public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
     {
-        var timer = new Timer(this, Throw.IfNull(callback), state);
+        if(callback is null)
+        {
+            throw new ArgumentNullException(nameof(callback));
+        }
+        var timer = new Timer(this,callback, state);
         _ = timer.Change(dueTime, period);
         return timer;
     }
